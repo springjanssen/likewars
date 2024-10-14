@@ -11,7 +11,6 @@ In Like Wars, players select a word they believe will resonate with the masses. 
 
 🚀 Getting Started
 
-    Download the Game: Get the latest version of Like Wars from [Your Download Link].
     Create an Account: Sign up to join the community and start your word journey.
     Join a Daily Challenge: Select your word and see how it ranks against others.
     Track Your Progress: Monitor your scores and climb the leaderboard!
