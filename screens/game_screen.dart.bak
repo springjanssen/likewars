@@ -1,0 +1,62 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:likewars/providers/game_provider.dart';
+
+class GameScreen extends StatefulWidget {
+  @override
+  _GameScreenState createState() => _GameScreenState();
+}
+  class _GameScreenState extends State<GameScreen> {
+    final _wordController = TextEditingController();
+
+    @override
+    void dispose() {
+      _wordController.dispose();
+      super.dispose();
+    }
+
+    void _submitWord() async {
+      final word = _wordController.text.trim();
+      if (word.isNotEmpty) {
+        final isValid = await Provider.of<GameProvider>(context, listen: false).submitWord(word);
+        if (isValid) {
+          // Word is valid, proceed with game logic
+          print('Valid word: $word');
+        } else {
+          // Word is invalid, display an error message
+          print('Invalid word: $word');
+        }
+        _wordController.clear();
+      }
+    }
+
+    @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('LikeWars'),
+      ),
+      body: Padding(
+        padding: EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text('What do you like?'),
+            SizedBox(height: 16.0),
+            TextField(
+              controller: _wordController,
+              decoration: InputDecoration(
+                hintText: 'Enter a word',
+              ),
+            ),
+            SizedBox(height: 16.0),
+            ElevatedButton(
+              onPressed: _submitWord,
+              child: Text('Submit'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

@@ -1,0 +1,78 @@
+import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
+import '../state/game_state.dart';
+import 'leaderboard_screen.dart'; // Add this import
+
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  _HomeScreenState createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  @override
+  Widget build(BuildContext context) {
+    final user = _auth.currentUser;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Welcome, ${user?.displayName ?? 'User'}!'),
+      ),
+      body: Center(
+        child: Consumer<GameState>(
+          builder: (context, gameState, child) {
+            return Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                
+                
+                const SizedBox(height: 20),
+              //  // ElevatedButton(
+              //     onPressed: () {
+              //       Navigator.pushNamed(context, '/game');
+              //     },
+              //     child: const Text('Go to Game Screen'),
+              //   ),
+              //   const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/profile');
+                  },
+                  child: const Text('View Profile'),
+                ),
+                const SizedBox(height: 20),
+                
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/daily_challenge');
+                  },
+                  child: const Text('Daily Challenge'),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => LeaderboardScreen()),
+                    );
+                  },
+                  child: const Text('View Leaderboard'),
+                ),
+                ElevatedButton(
+                onPressed: () {
+                  gameState.triggerDailyResetManually();
+                },
+                child: Text('Test Daily Reset'),
+              ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}

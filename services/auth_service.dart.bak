@@ -1,0 +1,152 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+// ... other imports for providers (Facebook, Apple, etc.)
+
+import '../models/user_model.dart';
+import 'database_service.dart';
+
+class AuthService {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  // ... instances of other providers
+
+  final DatabaseService _databaseService = DatabaseService();
+
+  // Get the currently logged-in Firebase user
+  User? getCurrentUser() {
+    return _auth.currentUser;
+  }
+
+  // Get user data from Firestore
+  Future<UserModel?> getUserData(String uid) async {
+    return _databaseService.getUserData(uid);
+  }
+
+  // Sign in with Google
+  Future<UserModel?> signInWithGoogle() async {
+    try {
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) return null; // Handle canceled sign-in
+
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      return await _signInWithCredential(credential);
+    } catch (e) {
+      print('Error signing in with Google: $e');
+      return null;
+    }
+  }
+
+  // Sign in with Twitter (handling web vs. native)
+  Future<UserModel?> signInWithTwitter() async {
+    try {
+      final TwitterAuthProvider twitterProvider = TwitterAuthProvider();
+
+      return await _signInWithProvider(twitterProvider as OAuthProvider);
+    } catch (e) {
+      print('Error signing in with Twitter: $e');
+      return null;
+    }
+  }
+
+  // Sign up with email and password
+  Future<UserModel?> signUpWithEmailAndPassword(
+      String email, String password) async {
+    try {
+      final UserCredential userCredential = await _auth
+          .createUserWithEmailAndPassword(email: email, password: password);
+
+      return _createUserFromFirebaseUser(userCredential.user!);
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'weak-password') {
+        print('The password provided is too weak.');
+      } else if (e.code == 'email-already-in-use') {
+        print('The account already exists for that email.');
+      }
+      return null; // Return null to indicate signup failure
+    }
+  }
+
+  // Sign in with email and password
+  Future<UserModel?> signInWithEmailAndPassword(
+      String email, String password) async {
+    try {
+      final UserCredential userCredential = await _auth
+          .signInWithEmailAndPassword(email: email, password: password);
+
+      return await getUserData(userCredential.user!.uid);
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'user-not-found') {
+        print('No user found for that email.');
+      } else if (e.code == 'wrong-password') {
+        print('Wrong password provided for that user.');
+      }
+      return null; // Return null to indicate sign-in failure
+    }
+  }
+
+  // Helper function to sign in with a credential
+  Future<UserModel?> _signInWithCredential(AuthCredential credential) async {
+    final UserCredential userCredential =
+        await _auth.signInWithCredential(credential);
+    final User user = userCredential.user!;
+
+    return _createUserFromFirebaseUser(user);
+  }
+
+  // Helper function to sign in with a provider (web vs. native)
+  Future<UserModel?> _signInWithProvider(OAuthProvider provider) async {
+    UserCredential userCredential;
+
+    if (kIsWeb) {
+      userCredential = await _auth.signInWithPopup(provider);
+    } else {
+      userCredential = await _auth.signInWithProvider(provider);
+    }
+
+    final User user = userCredential.user!;
+
+    return _createUserFromFirebaseUser(user);
+  }
+
+  // Helper function to create a UserModel from a FirebaseUser
+  Future<UserModel> _createUserFromFirebaseUser(User user) async {
+    UserModel? userModel = await getUserData(user.uid);
+
+    if (userModel == null) {
+      userModel = UserModel(
+        uid: user.uid,
+        email: user.email ?? '',
+        displayName: user.displayName ?? '',
+        photoURL: user.photoURL,
+        likes: 0,
+        fame: 0,
+        lastSubmittedWord: null,
+        lastSubmissionDate: null,
+        dailyScore: 0,
+      );
+      await createUser(userModel);
+    }
+
+    return userModel;
+  }
+
+  // Create a new user in Firestore
+  Future<void> createUser(UserModel user) async {
+    await _databaseService.createUser(user);
+  }
+
+  // Sign out
+  Future<void> signOut() async {
+    await _auth.signOut();
+    await _googleSignIn.signOut(); // Sign out from Google
+    // ... Sign out from other providers as needed
+  }
+}

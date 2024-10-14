@@ -1,0 +1,173 @@
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
+import '../state/game_state.dart';
+import '../utils/word_dictionary.dart';
+import '../widgets/on_screen_keyboard.dart';
+
+class GameScreen extends StatefulWidget {
+  const GameScreen({super.key});
+
+  @override
+  _GameScreenState createState() => _GameScreenState();
+}
+
+class _GameScreenState extends State<GameScreen> {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final TextEditingController _wordController = TextEditingController();
+  bool _isWordInvalid = false;
+  String? _wordDescription;
+  final List<String> _submittedWords = [];
+  DateTime _nextDayReset = DateTime.now().copyWith(hour: 15, minute: 0, second: 0, millisecond: 0);
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startDayTimer();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _startDayTimer() {
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      setState(() {
+        _nextDayReset = _nextDayReset.subtract(const Duration(seconds: 1));
+      });
+      if (_nextDayReset.isBefore(DateTime.now())) {
+        _endDay();
+      }
+    });
+  }
+
+  void _endDay() {
+    _timer?.cancel();
+    _timer = null;
+    _nextDayReset = DateTime.now().copyWith(hour: 15, minute: 0, second: 0, millisecond: 0);
+    // Perform end-of-day logic, such as scoring and resetting the game state
+    Provider.of<GameState>(context, listen: false).endDay();
+    _submittedWords.clear();
+    _startDayTimer();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(Intl.message('Game Screen')),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              await _auth.signOut();
+              Navigator.pushReplacementNamed(context, '/login');
+            },
+            tooltip: Intl.message('Logout'),
+          ),
+        ],
+      ),
+      body: Center(
+        child: Consumer<GameState>(
+          builder: (context, gameState, child) {
+            return Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text('${Intl.message('Your Score: ')}${gameState.score}'),
+                const SizedBox(height: 20),
+                TextField(
+                
+                  controller: _wordController,
+                  autocorrect: true,
+                  onChanged: (value) {
+                    setState(() {
+                      _isWordInvalid = false; // Reset invalid state on new input
+                    });
+                  },
+                  
+                  decoration: InputDecoration(
+                    hintText: Intl.message('Enter your word'),
+                    border: const OutlineInputBorder(),
+                    errorText: _isWordInvalid ? 'Invalid word!' : null,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                ElevatedButton(
+                  onPressed: () async {
+                    final word = _wordController.text.trim();
+                    final userId = _auth.currentUser?.uid ?? 'unknown_user'; // Fetch current user's ID
+                    if (word.isNotEmpty) {
+                      final description = await WordDictionary.getWordDescription(word);
+                      setState(() {
+                        _wordDescription = description;
+                        _isWordInvalid = description == 'No relevant information found.';
+                        if (_wordDescription != 'No relevant information found.') {
+                          _submittedWords.add(word); // Store the word if valid
+
+                          // Update GameState by adding the word
+                          gameState.addWord(word, userId);
+                        }
+                      });
+                    }
+                  },
+                  child: Text(Intl.message('Submit Word')),
+                ),
+                const SizedBox(height: 10),
+                if (_submittedWords.isNotEmpty) ...[
+                  Text('Submitted Words: ${_submittedWords.join(', ')}'),
+                ],
+                const SizedBox(height: 10),
+                ElevatedButton(
+                  onPressed: () {
+                    if (_wordDescription != null) {
+                      _showMeaningDialog(context, _wordDescription!);
+                    }
+                  },
+                  child: Text('Meaning of the Word'),
+                ),
+                const SizedBox(height: 20),
+                Text('Time Remaining: ${_nextDayReset.difference(DateTime.now()).inHours.toString().padLeft(2, '0')}:${(_nextDayReset.difference(DateTime.now()).inMinutes % 60).toString().padLeft(2, '0')}:${(_nextDayReset.difference(DateTime.now()).inSeconds % 60).toString().padLeft(2, '0')}'),
+                const SizedBox(height: 20),
+                OnScreenKeyboard(
+                  onKeyPressed: (key) {
+                    _wordController.text += key;
+                    setState(() {
+                      _isWordInvalid = false; // Reset invalid state on new input
+                    });
+                  },
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  void _showMeaningDialog(BuildContext context, String description) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Meaning of the Word'),
+          content: SingleChildScrollView(
+            child: Text(description, style: TextStyle(fontSize: 16)),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}

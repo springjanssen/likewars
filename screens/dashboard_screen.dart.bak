@@ -1,0 +1,43 @@
+import 'package:flutter/material.dart';
+import 'package:likewars/models/user_model.dart';
+
+class DashboardScreen extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final userModel = Provider.of<UserModel>(context);
+
+    return Scaffold(
+      appBar: AppBar(title: Text('Dashboard')),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            Text('Welcome, ${userModel.displayName}!'),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                // Navigate to daily challenge screen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => DailyChallengeScreen()),
+                );
+              },
+              child: Text('Daily Challenge'),
+            ),
+            SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: () {
+                // Navigate to likes system screen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => LikesSystemScreen()),
+                );
+              },
+              child: Text('Likes System'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

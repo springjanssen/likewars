@@ -1,0 +1,21 @@
+import 'package:flutter/material.dart';
+import 'package:likewars/models/user_model.dart';
+
+class HomeScreen extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final userModel = Provider.of<UserModel>(context);
+
+    return Scaffold(
+      appBar: AppBar(title: Text('Welcome to Like Wars')),
+      body: Center(
+        child: ElevatedButton(
+          onPressed: () async {
+            // TODO: Implement login functionality
+          },
+          child: Text('Login / Sign Up'),
+        ),
+      ),
+    );
+  }
+}

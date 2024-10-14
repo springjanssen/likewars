@@ -1,0 +1,36 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../state/game_state.dart';
+
+class ReusableObjectsPage extends StatefulWidget {
+  const ReusableObjectsPage({super.key});
+
+  @override
+  _ReusableObjectsPageState createState() => _ReusableObjectsPageState();
+}
+
+class _ReusableObjectsPageState extends State<ReusableObjectsPage> {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Reusable Objects'),
+      ),
+      body: Consumer<GameState>(
+        builder: (context, gameState, child) {
+          return ListView(
+            children: [
+              // Add your reusable game objects here
+              ListTile(
+                title: const Text('Game Piece 1'),
+                trailing: Text('Score: ${gameState.score}'),
+                onTap: gameState.incrementScore,
+              ),
+              // Add more reusable game objects as needed
+            ],
+          );
+        },
+      ),
+    );
+  }
+}

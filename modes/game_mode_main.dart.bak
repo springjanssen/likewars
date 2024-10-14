@@ -1,0 +1,110 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/player_model.dart';
+import '../models/challenge_model.dart'; 
+import '../widgets/countdown_timer_widget.dart';
+
+class GameModeMain extends StatefulWidget {
+  const GameModeMain({Key? key}) : super(key: key);
+
+  @override
+  _GameModeMainState createState() => _GameModeMainState();
+}
+
+class _GameModeMainState extends State<GameModeMain> {
+  final TextEditingController _wordController = TextEditingController();
+  bool _isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+  }
+
+  void _submitWord(PlayerModel player, ChallengeModel challenge) async {
+    if (_isSubmitting) return; // Prevent multiple submissions at the same time
+    setState(() => _isSubmitting = true);
+
+    final word = _wordController.text.trim();
+
+    // Check if the player has already submitted a word for this challenge
+    bool hasAlreadySubmitted = player.submissionHistory.any((submission) => submission['challengeId'] == challenge.challengeId);
+
+    // Validate submission conditions
+    if (word.isNotEmpty) {
+      if (!hasAlreadySubmitted) {
+        // Check against restricted words
+        if (!challenge.restrictedWords.contains(word)) {
+          // Add submission to player with challengeId
+          bool submissionAdded = player.addSubmission(word, Timestamp.now(), challenge.challengeId);
+
+          // Only proceed if the submission was successful
+          if (submissionAdded) {
+            // Save player's submission history to Firestore
+            await FirebaseFirestore.instance
+                .collection('players')
+                .doc(player.id)
+                .update(player.toMap());
+
+            // Submit word to challenge
+            challenge.submitWord(word);
+            await challenge.saveToFirestore();
+
+            _wordController.clear();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Word submitted successfully!')),
+            );
+          }
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('This word is restricted! Please choose another.')),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('You have already submitted a word for this challenge!')),
+        );
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please enter a valid word!')),
+      );
+    }
+
+    setState(() => _isSubmitting = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final player = Provider.of<PlayerModel>(context);
+    final challenge = Provider.of<ChallengeModel>(context);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Game Mode'),
+      ),
+      body: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text('Submit your word for the daily challenge!'),
+          SizedBox(height: 20),
+          TextField(
+            controller: _wordController,
+            decoration: InputDecoration(
+              hintText: 'Enter your word',
+            ),
+          ),
+          SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: () => _submitWord(player, challenge), // Ensure correct order
+            child: _isSubmitting 
+                ? CircularProgressIndicator() 
+                : Text('Submit Word'),
+          ),
+          SizedBox(height: 40),
+          CountdownTimerWidget(targetTime: challenge.endTime), // Countdown for the challenge
+        ],
+      ),
+    );
+  }
+}
